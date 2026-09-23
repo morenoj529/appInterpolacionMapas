@@ -253,7 +253,7 @@ def crear_figura(
     if gdf_ageb is not None and not gdf_ageb.empty:
         gdf_ageb.plot(ax=ax, facecolor="white", edgecolor="none", zorder=1)
 
-    im = ax.imshow(
+    ax.imshow(
         raster_idw,
         extent=[minx, maxx, miny, maxy],
         origin="lower",
@@ -298,25 +298,195 @@ def crear_figura(
         arrowprops=dict(facecolor="black", edgecolor="black", width=2, headwidth=7),
     )
 
+    box_x, box_y, box_w, box_h = 0.58, 0.02, 0.40, 0.20
+    box_mid_y = box_y + (box_h / 2)
+    box_mid_x = box_x + (box_w / 2)
     cajetin = patches.Rectangle(
-        (0.68, 0.03),
-        0.30,
-        0.16,
+        (box_x, box_y),
+        box_w,
+        box_h,
         transform=ax.transAxes,
         facecolor="white",
         edgecolor="black",
-        linewidth=0.8,
-        zorder=8,
+        linewidth=1.0,
+        zorder=9,
     )
     ax.add_patch(cajetin)
-    ax.text(0.70, 0.16, titulo_mapa, transform=ax.transAxes, fontsize=7, fontweight="bold", zorder=9)
-    ax.text(0.70, 0.135, f"Max:  {vmax_data:.1f} {unidad}", transform=ax.transAxes, fontsize=6.5, zorder=9)
-    ax.text(0.70, 0.115, f"Mean: {np.nanmean(vals):.1f} {unidad}", transform=ax.transAxes, fontsize=6.5, zorder=9)
-    ax.text(0.70, 0.095, f"Min:  {vmin_data:.1f} {unidad}", transform=ax.transAxes, fontsize=6.5, zorder=9)
+    ax.plot(
+        [box_x, box_x + box_w],
+        [box_mid_y, box_mid_y],
+        transform=ax.transAxes,
+        color="black",
+        linewidth=0.8,
+        zorder=10,
+    )
+    ax.plot(
+        [box_mid_x, box_mid_x],
+        [box_mid_y, box_y + box_h],
+        transform=ax.transAxes,
+        color="black",
+        linewidth=0.8,
+        zorder=10,
+    )
 
-    cax = fig.add_axes([0.89, 0.17, 0.015, 0.10])
-    cbar = plt.colorbar(im, cax=cax, orientation="vertical")
-    cbar.ax.tick_params(labelsize=6)
+    # Cuadrante superior izquierdo
+    ax.text(
+        box_x + 0.015,
+        box_y + box_h - 0.016,
+        titulo_mapa,
+        transform=ax.transAxes,
+        fontsize=6.5,
+        fontweight="bold",
+        va="top",
+        zorder=11,
+    )
+    grad_x0, grad_x1 = box_x + 0.015, box_x + 0.035
+    grad_y0, grad_y1 = box_mid_y + 0.010, box_y + box_h - 0.040
+    ax.imshow(
+        np.linspace(0, 1, 256).reshape(-1, 1),
+        transform=ax.transAxes,
+        cmap=cmap_personalizado,
+        aspect="auto",
+        origin="lower",
+        extent=[grad_x0, grad_x1, grad_y0, grad_y1],
+        zorder=11,
+    )
+    ax.add_patch(
+        patches.Rectangle(
+            (grad_x0, grad_y0),
+            grad_x1 - grad_x0,
+            grad_y1 - grad_y0,
+            transform=ax.transAxes,
+            facecolor="none",
+            edgecolor="black",
+            linewidth=0.7,
+            zorder=12,
+        )
+    )
+    ax.text(
+        grad_x1 + 0.012,
+        grad_y1 - 0.002,
+        f"Max: {vmax_data:.1f} {unidad}",
+        transform=ax.transAxes,
+        fontsize=6,
+        va="top",
+        zorder=11,
+    )
+    ax.text(
+        grad_x1 + 0.012,
+        (grad_y0 + grad_y1) / 2,
+        f"Mean: {np.nanmean(vals):.1f} {unidad}",
+        transform=ax.transAxes,
+        fontsize=6,
+        va="center",
+        zorder=11,
+    )
+    ax.text(
+        grad_x1 + 0.012,
+        grad_y0 + 0.001,
+        f"Min: {vmin_data:.1f} {unidad}",
+        transform=ax.transAxes,
+        fontsize=6,
+        va="bottom",
+        zorder=11,
+    )
+
+    # Cuadrante superior derecho
+    ax.text(
+        box_mid_x + 0.01,
+        box_y + box_h - 0.016,
+        "AGEB_LMM",
+        transform=ax.transAxes,
+        fontsize=6.5,
+        fontweight="bold",
+        va="top",
+        zorder=11,
+    )
+    ax.add_patch(
+        patches.Rectangle(
+            (box_mid_x + 0.01, box_mid_y + 0.018),
+            0.012,
+            0.018,
+            transform=ax.transAxes,
+            facecolor="white",
+            edgecolor="black",
+            linewidth=0.7,
+            zorder=11,
+        )
+    )
+    ax.text(
+        box_mid_x + 0.026,
+        box_mid_y + 0.027,
+        "Los Mochis Urban\nArea (56.7 km²)",
+        transform=ax.transAxes,
+        fontsize=5.6,
+        va="center",
+        zorder=11,
+    )
+
+    # Mitad inferior (escala)
+    ax.text(
+        box_x + 0.02,
+        box_mid_y - 0.020,
+        "SCALE",
+        transform=ax.transAxes,
+        fontsize=7,
+        fontweight="bold",
+        zorder=11,
+    )
+    ax.text(
+        box_x + 0.02,
+        box_mid_y - 0.043,
+        "1:26,000",
+        transform=ax.transAxes,
+        fontsize=6.5,
+        zorder=11,
+    )
+    scale_x = box_x + 0.14
+    scale_y = box_y + 0.020
+    scale_w = 0.22
+    scale_h = 0.020
+    segment_lengths_km = [0.5, 0.5, 1.0, 1.0, 1.0]
+    total_km = 4.0
+    offset_x = scale_x
+    for i, seg_km in enumerate(segment_lengths_km):
+        seg_w = scale_w * (seg_km / total_km)
+        ax.add_patch(
+            patches.Rectangle(
+                (offset_x, scale_y),
+                seg_w,
+                scale_h,
+                transform=ax.transAxes,
+                facecolor="black" if i % 2 == 0 else "white",
+                edgecolor="black",
+                linewidth=0.7,
+                zorder=11,
+            )
+        )
+        offset_x += seg_w
+    ax.text(
+        scale_x + scale_w + 0.008,
+        scale_y + (scale_h / 2),
+        "Kilometers",
+        transform=ax.transAxes,
+        fontsize=6,
+        va="center",
+        zorder=11,
+    )
+    for label, pos in zip(
+        ["0", "0.5", "1", "2", "3", "4"],
+        [0.0, 0.5, 1.0, 2.0, 3.0, 4.0],
+    ):
+        ax.text(
+            scale_x + (pos / total_km) * scale_w,
+            scale_y - 0.010,
+            label,
+            transform=ax.transAxes,
+            fontsize=5.8,
+            ha="center",
+            va="top",
+            zorder=11,
+        )
     return fig
 
 

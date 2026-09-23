@@ -114,6 +114,16 @@ class CrearFiguraTests(unittest.TestCase):
             ax=fig.axes[0], facecolor="white", edgecolor="none", zorder=1
         )
         self.assertGreaterEqual(fig.axes[0].images[0].get_zorder(), 2)
+        self.assertEqual(len(fig.axes), 1)
+        self.assertTrue(
+            any(
+                abs(p.get_x() - 0.58) < 1e-9
+                and abs(p.get_y() - 0.02) < 1e-9
+                and abs(p.get_width() - 0.40) < 1e-9
+                and abs(p.get_height() - 0.20) < 1e-9
+                for p in fig.axes[0].patches
+            )
+        )
         app.plt.close(fig)
 
 
