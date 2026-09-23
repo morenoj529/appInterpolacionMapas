@@ -192,7 +192,7 @@ def interpolar_idw(lons, lats, vals, gx, gy, potencia_idw, gdf_ageb=None):
 def obtener_estilo(variable_seleccionada):
     if variable_seleccionada == "Temperatura (°C)":
         colores = ["#228B22", "#7CFC00", "#FFFF00", "#FFA500", "#FF4500", "#B22222", "#800000", "#300000"]
-        return colores, "Land Surface Temperature (LST)", "°C", "#E6E6FA"
+        return colores, "Temperatura del aire", "°C", "#E6E6FA"
 
     colores = ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6", "#4292c6", "#2171b5", "#08519c", "#08306b"]
     return colores, "Precipitación Acumulada", "mm", "#FFD700"
