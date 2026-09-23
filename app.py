@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import geopandas as gpd
+import contextily as cx
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
@@ -237,6 +238,21 @@ def crear_figura(
         vmax_plot += 1.0
 
     fig, ax = plt.subplots(figsize=(11, 10), dpi=200)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda val, pos: deg_to_dms(val, False)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda val, pos: deg_to_dms(val, True)))
+    ax.tick_params(axis="both", which="major", labelsize=8, direction="out")
+    ax.set_xlim(minx, maxx)
+    ax.set_ylim(miny, maxy)
+    cx.add_basemap(
+        ax,
+        crs="EPSG:4326",
+        source=cx.providers.Esri.WorldTopoMap,
+        zorder=0,
+        attribution=False,
+    )
+    if gdf_ageb is not None and not gdf_ageb.empty:
+        gdf_ageb.plot(ax=ax, facecolor="white", edgecolor="none", zorder=1)
+
     im = ax.imshow(
         raster_idw,
         extent=[minx, maxx, miny, maxy],
@@ -246,6 +262,7 @@ def crear_figura(
         vmax=vmax_plot,
         alpha=0.95,
         interpolation="bilinear",
+        zorder=2,
     )
 
     if gdf_ageb is not None and not gdf_ageb.empty:
@@ -266,11 +283,6 @@ def crear_figura(
             zorder=7,
         )
 
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda val, pos: deg_to_dms(val, False)))
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda val, pos: deg_to_dms(val, True)))
-    ax.tick_params(axis="both", which="major", labelsize=8, direction="out")
-    ax.set_xlim(minx, maxx)
-    ax.set_ylim(miny, maxy)
     ax.grid(True, linestyle="-", linewidth=0.4, color="gray", alpha=0.6)
     ax.set_title(titulo_mapa, fontsize=14, fontweight="bold", pad=15)
 
