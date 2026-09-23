@@ -77,5 +77,45 @@ class IdwTests(unittest.TestCase):
         self.assertEqual(salida[0, 0], 42.0)
 
 
+class CrearFiguraTests(unittest.TestCase):
+    def test_agrega_basemap_mascara_y_zorder_interpolacion(self):
+        raster_idw = np.array([[1.0, 2.0], [3.0, 4.0]])
+        gdf_ageb = types.SimpleNamespace(
+            empty=False,
+            plot=types.SimpleNamespace(),
+            boundary=types.SimpleNamespace(),
+        )
+        gdf_ageb.plot = unittest.mock.Mock()
+        gdf_ageb.boundary.plot = unittest.mock.Mock()
+
+        with patch("app.cx.add_basemap") as add_basemap_mock:
+            fig = app.crear_figura(
+                raster_idw=raster_idw,
+                minx=-109.0,
+                maxx=-108.9,
+                miny=25.7,
+                maxy=25.8,
+                gdf_ageb=gdf_ageb,
+                lons=np.array([-108.95]),
+                lats=np.array([25.75]),
+                ids_estaciones=["EST-1"],
+                vals=np.array([30.0]),
+                variable_seleccionada="Temperatura (°C)",
+            )
+
+        add_basemap_mock.assert_called_once_with(
+            fig.axes[0],
+            crs="EPSG:4326",
+            source=app.cx.providers.Esri.WorldTopoMap,
+            zorder=0,
+            attribution=False,
+        )
+        gdf_ageb.plot.assert_called_once_with(
+            ax=fig.axes[0], facecolor="white", edgecolor="none", zorder=1
+        )
+        self.assertGreaterEqual(fig.axes[0].images[0].get_zorder(), 2)
+        app.plt.close(fig)
+
+
 if __name__ == "__main__":
     unittest.main()
