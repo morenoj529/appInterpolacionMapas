@@ -77,5 +77,23 @@ class IdwTests(unittest.TestCase):
         self.assertEqual(salida[0, 0], 42.0)
 
 
+class CartografiaUtilsTests(unittest.TestCase):
+    def test_deg_to_dms_normaliza_redondeo_y_hemisferio(self):
+        self.assertEqual(app.deg_to_dms(-108.9999999, is_lat=False), "109°0'0\"W")
+        self.assertEqual(app.deg_to_dms(-0.0002777778, is_lat=True), "0°0'1\"S")
+
+    def test_calcular_ancho_metros_y_barra_con_extension_degenerada(self):
+        ancho = app.calcular_ancho_metros(-108.9, -108.9, 25.7, 25.8, gdf_ageb=None)
+        self.assertEqual(ancho, 0.0)
+        self.assertEqual(app.elegir_longitud_barra(ancho), 0.0)
+
+    def test_calcular_ancho_metros_aprox_sin_crs_local(self):
+        ancho = app.calcular_ancho_metros(-109.0, -108.95, 25.7, 25.8, gdf_ageb=None)
+        self.assertTrue(ancho > 0)
+        barra = app.elegir_longitud_barra(ancho)
+        self.assertTrue(barra > 0)
+        self.assertTrue(barra >= ancho * 0.2)
+
+
 if __name__ == "__main__":
     unittest.main()
