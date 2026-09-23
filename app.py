@@ -200,174 +200,17 @@ def obtener_estilo(variable_seleccionada):
 
 def deg_to_dms(val, is_lat=True):
     hemi = ("N" if val >= 0 else "S") if is_lat else ("E" if val >= 0 else "W")
-    total_seconds = int(round(abs(float(val)) * 3600))
-    d = total_seconds // 3600
-    m = (total_seconds % 3600) // 60
-    s = total_seconds % 60
+    v = abs(val)
+    d = int(v)
+    m = int((v - d) * 60)
+    s = int(round((v - d - m / 60) * 3600))
+    if s == 60:
+        m += 1
+        s = 0
+    if m == 60:
+        d += 1
+        m = 0
     return f"{d}°{m}'{s}\"{hemi}"
-
-
-def calcular_ancho_metros(minx, maxx, miny, maxy, gdf_ageb=None):
-    ancho_grados = float(maxx) - float(minx)
-    if ancho_grados <= 0:
-        return 0.0
-
-    lat_media = (float(miny) + float(maxy)) / 2.0
-    if gdf_ageb is not None and not gdf_ageb.empty:
-        try:
-            crs_local = gdf_ageb.estimate_utm_crs()
-            if crs_local is not None:
-                px, py = proyectar_xy([minx, maxx], [lat_media, lat_media], crs_local)
-                ancho = abs(float(px[1] - px[0]))
-                if np.isfinite(ancho) and ancho > 0:
-                    return ancho
-        except Exception:
-            pass
-
-    metros_por_grado_lon = 111320.0 * np.cos(np.radians(lat_media))
-    ancho = abs(ancho_grados * metros_por_grado_lon)
-    return float(ancho) if np.isfinite(ancho) and ancho > 0 else 0.0
-
-
-def elegir_longitud_barra(ancho_m):
-    if not np.isfinite(ancho_m) or ancho_m <= 0:
-        return 0.0
-    objetivo = ancho_m * 0.22
-    pot = 10.0 ** np.floor(np.log10(objetivo))
-    for factor in (1.0, 2.0, 5.0, 10.0):
-        cand = factor * pot
-        if cand >= objetivo:
-            return float(cand)
-    return float(10.0 * pot)
-
-
-def _crear_rosa_vientos(ax, cx=0.915, cy=0.865, tam=0.045):
-    vertices = {
-        "N": np.array([[cx, cy + tam], [cx - tam * 0.26, cy], [cx + tam * 0.26, cy]]),
-        "E": np.array([[cx + tam, cy], [cx, cy + tam * 0.26], [cx, cy - tam * 0.26]]),
-        "S": np.array([[cx, cy - tam], [cx - tam * 0.26, cy], [cx + tam * 0.26, cy]]),
-        "W": np.array([[cx - tam, cy], [cx, cy + tam * 0.26], [cx, cy - tam * 0.26]]),
-    }
-    colores = {"N": "black", "E": "white", "S": "black", "W": "white"}
-    for rumbo, pts in vertices.items():
-        ax.add_patch(
-            patches.Polygon(
-                pts,
-                closed=True,
-                facecolor=colores[rumbo],
-                edgecolor="black",
-                linewidth=1.0,
-                transform=ax.transAxes,
-                zorder=11,
-            )
-        )
-    ax.add_patch(
-        patches.Circle((cx, cy), tam * 0.08, transform=ax.transAxes, facecolor="black", edgecolor="black", zorder=12)
-    )
-    ax.text(cx, cy + tam * 1.22, "N", transform=ax.transAxes, ha="center", va="center", fontsize=8, fontweight="bold", zorder=12)
-    ax.text(cx + tam * 1.22, cy, "E", transform=ax.transAxes, ha="center", va="center", fontsize=8, fontweight="bold", zorder=12)
-    ax.text(cx, cy - tam * 1.22, "S", transform=ax.transAxes, ha="center", va="center", fontsize=8, fontweight="bold", zorder=12)
-    ax.text(cx - tam * 1.22, cy, "W", transform=ax.transAxes, ha="center", va="center", fontsize=8, fontweight="bold", zorder=12)
-
-
-def _configurar_marco(ax, minx, maxx, miny, maxy):
-    ax.set_xlim(minx, maxx)
-    ax.set_ylim(miny, maxy)
-    ax.set_aspect("equal", adjustable="box")
-
-    xticks = np.linspace(minx, maxx, 6)
-    yticks = np.linspace(miny, maxy, 6)
-    ax.set_xticks(xticks)
-    ax.set_yticks(yticks)
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda val, pos: deg_to_dms(val, False)))
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda val, pos: deg_to_dms(val, True)))
-
-    ax.set_xticks(np.linspace(minx, maxx, 21), minor=True)
-    ax.set_yticks(np.linspace(miny, maxy, 21), minor=True)
-    ax.grid(True, which="major", linestyle="-", linewidth=0.45, color="black", alpha=0.35)
-    ax.grid(True, which="minor", linestyle="-", linewidth=0.25, color="black", alpha=0.22)
-    ax.tick_params(axis="both", which="major", labelsize=8, direction="out", pad=3)
-
-    top_ax = ax.secondary_xaxis("top")
-    top_ax.set_xticks(xticks)
-    top_ax.xaxis.set_major_formatter(FuncFormatter(lambda val, pos: deg_to_dms(val, False)))
-    top_ax.tick_params(axis="x", which="major", labelsize=8, direction="out", pad=3)
-
-    right_ax = ax.secondary_yaxis("right")
-    right_ax.set_yticks(yticks)
-    right_ax.yaxis.set_major_formatter(FuncFormatter(lambda val, pos: deg_to_dms(val, True)))
-    right_ax.tick_params(axis="y", which="major", labelsize=8, direction="out", pad=3, labelrotation=90)
-    for lbl in ax.get_yticklabels():
-        lbl.set_rotation(90)
-
-
-def _agregar_cajetin(ax, fig, titulo_mapa, unidad, vals, gdf_ageb, minx, maxx, miny, maxy):
-    x0, y0, w, h = 0.695, 0.02, 0.29, 0.29
-    ax.add_patch(
-        patches.Rectangle((x0, y0), w, h, transform=ax.transAxes, facecolor="white", edgecolor="black", linewidth=1.0, zorder=10)
-    )
-
-    y_split_1 = y0 + h * 0.54
-    y_split_2 = y0 + h * 0.33
-    ax.plot([x0, x0 + w], [y_split_1, y_split_1], transform=ax.transAxes, color="black", linewidth=0.8, zorder=11)
-    ax.plot([x0, x0 + w], [y_split_2, y_split_2], transform=ax.transAxes, color="black", linewidth=0.8, zorder=11)
-
-    vmin_data = float(np.nanmin(vals))
-    vmax_data = float(np.nanmax(vals))
-    media = float(np.nanmean(vals))
-
-    ax.text(x0 + 0.015, y0 + h * 0.48, titulo_mapa, transform=ax.transAxes, fontsize=7.2, fontweight="bold", zorder=12)
-    ax.text(x0 + 0.015, y0 + h * 0.41, f"Unidad: {unidad}", transform=ax.transAxes, fontsize=6.7, zorder=12)
-    ax.text(x0 + 0.015, y0 + h * 0.34, f"Max:  {vmax_data:.1f}", transform=ax.transAxes, fontsize=6.7, zorder=12)
-    ax.text(x0 + 0.015, y0 + h * 0.28, f"Mean: {media:.1f}", transform=ax.transAxes, fontsize=6.7, zorder=12)
-    ax.text(x0 + 0.015, y0 + h * 0.22, f"Min:  {vmin_data:.1f}", transform=ax.transAxes, fontsize=6.7, zorder=12)
-
-    ax.text(x0 + 0.015, y_split_1 - 0.03, "Leyenda", transform=ax.transAxes, fontsize=7.0, fontweight="bold", zorder=12)
-    if gdf_ageb is not None and not gdf_ageb.empty:
-        y_leg = y_split_1 - 0.07
-        ax.plot([x0 + 0.015, x0 + 0.075], [y_leg, y_leg], transform=ax.transAxes, color="black", linewidth=1.2, zorder=12)
-        ax.text(x0 + 0.085, y_leg, "Límite urbano / AGEB", transform=ax.transAxes, va="center", fontsize=6.5, zorder=12)
-    else:
-        ax.text(x0 + 0.015, y_split_1 - 0.07, "Sin geometría urbana disponible", transform=ax.transAxes, fontsize=6.4, zorder=12)
-
-    ax.text(x0 + 0.015, y_split_2 - 0.02, "SCALE", transform=ax.transAxes, fontsize=7.0, fontweight="bold", zorder=12)
-    ancho_m = calcular_ancho_metros(minx, maxx, miny, maxy, gdf_ageb=gdf_ageb)
-    barra_m = elegir_longitud_barra(ancho_m)
-    frac = min(0.22, (barra_m / ancho_m) * 0.9) if ancho_m > 0 and barra_m > 0 else 0.15
-    bar_x = x0 + 0.015
-    bar_y = y0 + 0.03
-    bar_w = w * 0.9 * frac
-    bar_h = 0.012
-    ax.add_patch(
-        patches.Rectangle((bar_x, bar_y), bar_w, bar_h, transform=ax.transAxes, facecolor="black", edgecolor="black", linewidth=0.8, zorder=12)
-    )
-    ax.add_patch(
-        patches.Rectangle(
-            (bar_x + bar_w, bar_y),
-            bar_w,
-            bar_h,
-            transform=ax.transAxes,
-            facecolor="white",
-            edgecolor="black",
-            linewidth=0.8,
-            zorder=12,
-        )
-    )
-    distancia_label = f"{barra_m / 1000:.1f} km" if barra_m >= 1000 else f"{barra_m:.0f} m"
-    ax.text(bar_x, bar_y + 0.016, "0", transform=ax.transAxes, fontsize=6.2, zorder=12)
-    ax.text(bar_x + bar_w, bar_y + 0.016, distancia_label, transform=ax.transAxes, fontsize=6.2, ha="center", zorder=12)
-    ax.text(bar_x + 2 * bar_w, bar_y + 0.016, distancia_label, transform=ax.transAxes, fontsize=6.2, ha="center", zorder=12)
-
-    escala_txt = "Escala aprox.: N/D"
-    if barra_m > 0:
-        ax_pos = ax.get_position()
-        ancho_eje_m = fig.get_figwidth() * ax_pos.width * 0.0254
-        if ancho_eje_m > 0:
-            barra_fisica_m = ancho_eje_m * (2 * bar_w / ax_pos.width)
-            if barra_fisica_m > 0:
-                escala = barra_m * 2 / barra_fisica_m
-                escala_txt = f"Escala aprox.: 1:{int(round(escala)):,}".replace(",", " ")
-    ax.text(x0 + 0.015, y0 + 0.005, escala_txt, transform=ax.transAxes, fontsize=6.2, zorder=12)
 
 
 def crear_figura(
@@ -393,8 +236,7 @@ def crear_figura(
         vmin_plot = max(0.0, vmin_plot - 1.0)
         vmax_plot += 1.0
 
-    fig, ax = plt.subplots(figsize=(14, 8), dpi=200)
-    fig.subplots_adjust(left=0.055, right=0.965, bottom=0.07, top=0.90)
+    fig, ax = plt.subplots(figsize=(11, 10), dpi=200)
     im = ax.imshow(
         raster_idw,
         extent=[minx, maxx, miny, maxy],
@@ -424,10 +266,41 @@ def crear_figura(
             zorder=7,
         )
 
-    _configurar_marco(ax, minx, maxx, miny, maxy)
-    ax.set_title(titulo_mapa, fontsize=20, fontweight="bold", pad=18)
-    _crear_rosa_vientos(ax)
-    _agregar_cajetin(ax, fig, titulo_mapa, unidad, vals, gdf_ageb, minx, maxx, miny, maxy)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda val, pos: deg_to_dms(val, False)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda val, pos: deg_to_dms(val, True)))
+    ax.tick_params(axis="both", which="major", labelsize=8, direction="out")
+    ax.set_xlim(minx, maxx)
+    ax.set_ylim(miny, maxy)
+    ax.grid(True, linestyle="-", linewidth=0.4, color="gray", alpha=0.6)
+    ax.set_title(titulo_mapa, fontsize=14, fontweight="bold", pad=15)
+
+    ax.annotate(
+        "N",
+        xy=(0.95, 0.94),
+        xytext=(0.95, 0.88),
+        xycoords="axes fraction",
+        ha="center",
+        va="center",
+        fontsize=12,
+        fontweight="bold",
+        arrowprops=dict(facecolor="black", edgecolor="black", width=2, headwidth=7),
+    )
+
+    cajetin = patches.Rectangle(
+        (0.68, 0.03),
+        0.30,
+        0.16,
+        transform=ax.transAxes,
+        facecolor="white",
+        edgecolor="black",
+        linewidth=0.8,
+        zorder=8,
+    )
+    ax.add_patch(cajetin)
+    ax.text(0.70, 0.16, titulo_mapa, transform=ax.transAxes, fontsize=7, fontweight="bold", zorder=9)
+    ax.text(0.70, 0.135, f"Max:  {vmax_data:.1f} {unidad}", transform=ax.transAxes, fontsize=6.5, zorder=9)
+    ax.text(0.70, 0.115, f"Mean: {np.nanmean(vals):.1f} {unidad}", transform=ax.transAxes, fontsize=6.5, zorder=9)
+    ax.text(0.70, 0.095, f"Min:  {vmin_data:.1f} {unidad}", transform=ax.transAxes, fontsize=6.5, zorder=9)
 
     cax = fig.add_axes([0.89, 0.17, 0.015, 0.10])
     cbar = plt.colorbar(im, cax=cax, orientation="vertical")
