@@ -298,25 +298,123 @@ def crear_figura(
         arrowprops=dict(facecolor="black", edgecolor="black", width=2, headwidth=7),
     )
 
+    # ==========================================
+    # CUADRO DE INFORMACIÓN (Con márgenes ajustados para textos largos)
+    # ==========================================
+    box_x, box_y = 0.60, 0.02
+    box_w, box_h = 0.38, 0.175
+    mid_y = box_y + 0.072
+    mid_x = box_x + 0.20
+
     cajetin = patches.Rectangle(
-        (0.68, 0.03),
-        0.30,
-        0.16,
+        (box_x, box_y),
+        box_w,
+        box_h,
         transform=ax.transAxes,
-        facecolor="white",
+        facecolor="#fffff5",
         edgecolor="black",
         linewidth=0.8,
         zorder=8,
     )
     ax.add_patch(cajetin)
-    ax.text(0.70, 0.16, titulo_mapa, transform=ax.transAxes, fontsize=7, fontweight="bold", zorder=9)
-    ax.text(0.70, 0.135, f"Max:  {vmax_data:.1f} {unidad}", transform=ax.transAxes, fontsize=6.5, zorder=9)
-    ax.text(0.70, 0.115, f"Mean: {np.nanmean(vals):.1f} {unidad}", transform=ax.transAxes, fontsize=6.5, zorder=9)
-    ax.text(0.70, 0.095, f"Min:  {vmin_data:.1f} {unidad}", transform=ax.transAxes, fontsize=6.5, zorder=9)
 
-    cax = fig.add_axes([0.89, 0.17, 0.015, 0.10])
-    cbar = plt.colorbar(im, cax=cax, orientation="vertical")
-    cbar.ax.tick_params(labelsize=6)
+    # Líneas divisorias internas
+    ax.plot([box_x, box_x + box_w], [mid_y, mid_y], color="black", linewidth=0.7, transform=ax.transAxes, zorder=9)
+    ax.plot([mid_x, mid_x], [mid_y, box_y + box_h], color="black", linewidth=0.7, transform=ax.transAxes, zorder=9)
+
+    # --- Cuadrante Superior Izquierdo: Paleta y Estadísticos ---
+    ax.text(box_x + 0.008, box_y + 0.158, titulo_mapa, transform=ax.transAxes, fontsize=5.6, fontweight="bold", zorder=9)
+    ax.text(box_x + 0.008, box_y + 0.138, variable_seleccionada, transform=ax.transAxes, fontsize=5.5, fontweight="bold", zorder=9)
+
+    # Paleta de colores dibujada con patches.Rectangle para NO deformar el mapa
+    cb_x, cb_y = box_x + 0.010, box_y + 0.082
+    cb_w, cb_h = 0.018, 0.048
+    n_steps = 64
+    step_h = cb_h / n_steps
+    for i in range(n_steps):
+        color_step = cmap_personalizado(i / (n_steps - 1))
+        franja = patches.Rectangle(
+            (cb_x, cb_y + i * step_h),
+            cb_w,
+            step_h * 1.05,
+            transform=ax.transAxes,
+            facecolor=color_step,
+            edgecolor="none",
+            zorder=10,
+        )
+        ax.add_patch(franja)
+
+    borde_cb = patches.Rectangle(
+        (cb_x, cb_y),
+        cb_w,
+        cb_h,
+        transform=ax.transAxes,
+        facecolor="none",
+        edgecolor="black",
+        linewidth=0.6,
+        zorder=11,
+    )
+    ax.add_patch(borde_cb)
+
+    ax.text(box_x + 0.034, box_y + 0.120, f"- Max:  {vmax_data:.2f}", transform=ax.transAxes, fontsize=5.6, zorder=9)
+    ax.text(box_x + 0.034, box_y + 0.102, f"- Mean: {np.nanmean(vals):.2f}", transform=ax.transAxes, fontsize=5.6, zorder=9)
+    ax.text(box_x + 0.034, box_y + 0.084, f"- Min:  {vmin_data:.2f}", transform=ax.transAxes, fontsize=5.6, zorder=9)
+
+    # --- Cuadrante Superior Derecho: AGEB ---
+    ax.text(mid_x + 0.008, box_y + 0.158, "AGEB_LMM", transform=ax.transAxes, fontsize=5.8, fontweight="bold", zorder=9)
+    cuadro_ageb = patches.Rectangle(
+        (mid_x + 0.008, box_y + 0.112),
+        0.022,
+        0.018,
+        transform=ax.transAxes,
+        facecolor="white",
+        edgecolor="black",
+        linewidth=0.7,
+        zorder=9,
+    )
+    ax.add_patch(cuadro_ageb)
+    ax.text(mid_x + 0.035, box_y + 0.123, "Los Mochis Urban Area", transform=ax.transAxes, fontsize=5.0, zorder=9)
+    ax.text(mid_x + 0.035, box_y + 0.107, "(56.7 km²)", transform=ax.transAxes, fontsize=5.0, zorder=9)
+
+    # --- Parte Inferior: Escala 1:26,000 y Barra de Kilómetros ---
+    ax.text(box_x + 0.02, box_y + 0.048, "SCALE", transform=ax.transAxes, fontsize=7.8, fontweight="bold", zorder=9)
+    ax.text(box_x + 0.12, box_y + 0.048, "1:26,000", transform=ax.transAxes, fontsize=7.8, zorder=9)
+
+    base_x = box_x + 0.02
+    base_sy = box_y + 0.024
+    alto = 0.009
+    anchos = [0.028, 0.028, 0.056, 0.056, 0.056]
+    colores_barra = ["black", "white", "black", "white", "black"]
+
+    x_actual = base_x
+    for ancho, color in zip(anchos, colores_barra):
+        bloque = patches.Rectangle(
+            (x_actual, base_sy),
+            ancho,
+            alto,
+            transform=ax.transAxes,
+            facecolor=color,
+            edgecolor="black",
+            linewidth=0.7,
+            zorder=9,
+        )
+        ax.add_patch(bloque)
+        x_actual += ancho
+
+    ax.text(x_actual + 0.008, base_sy + 0.001, "Kilometers", transform=ax.transAxes, fontsize=5.6, zorder=9)
+
+    etiquetas_x = [
+        base_x,
+        base_x + 0.028,
+        base_x + 0.056,
+        base_x + 0.112,
+        base_x + 0.168,
+        base_x + 0.224,
+    ]
+    etiquetas_val = ["0", "0.5", "1", "2", "3", "4"]
+    for ex, ev in zip(etiquetas_x, etiquetas_val):
+        ax.text(ex, base_sy - 0.013, ev, transform=ax.transAxes, fontsize=5.2, ha="center", zorder=9)
+
     return fig
 
 
